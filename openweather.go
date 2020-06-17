@@ -91,15 +91,6 @@ type OpenWeatherResponseOneCall struct {
 	Daily   *[]OpenWeatherResponseDaily
 }
 
-const (
-	WeatherPeriodCurrent  = "current"
-	WeatherPeriodMinutely = "minutely"
-	WeatherPeriodHourly   = "hourly"
-	WeatherPeriodDaily    = "daily"
-	UnitsImperial         = "imperial"
-	UnitsMetric           = "metric"
-)
-
 func getWeatherForLatLng(latLng LatLng, units string, period string) (weather OpenWeatherResponseOneCall, err error) {
 	// build exclude-list; always exclude minutely
 	exclude := []string{WeatherPeriodMinutely}
@@ -126,17 +117,17 @@ func getWeatherForLatLng(latLng LatLng, units string, period string) (weather Op
 
 	r, err := http.Get(u)
 	if err != nil {
-		return OpenWeatherResponseOneCall{}, err
+		return weather, err
 	}
 	defer r.Body.Close()
 
 	if r.StatusCode != 200 {
-		return OpenWeatherResponseOneCall{}, errors.New(fmt.Sprintf("OpenWeatherRequest Failed: %s", r.Status))
+		return weather, errors.New(fmt.Sprintf("OpenWeatherRequest Failed: %s", r.Status))
 	}
 
 	err = json.NewDecoder(r.Body).Decode(&weather)
 	if err != nil {
-		return OpenWeatherResponseOneCall{}, err
+		return weather, err
 	}
 
 	return weather, nil

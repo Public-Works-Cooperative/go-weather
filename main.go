@@ -1,62 +1,79 @@
 package main
 
 import (
-	"encoding/json"
+	"flag"
 	"fmt"
-	"log"
-	"net/http"
-	"net/url"
+	"os"
+	"strings"
 	"time"
 )
 
-type LatLng struct {
-	Lat float64
-	Lng float64
+const (
+	WeatherPeriodCurrent  = "current"
+	WeatherPeriodMinutely = "minutely"
+	WeatherPeriodHourly   = "hourly"
+	WeatherPeriodDaily    = "daily"
+	UnitsImperial         = "imperial"
+	UnitsMetric           = "metric"
+)
+
+func exitInvalidArguments() {
+	println("\nUsage: go-weather [ -period=current|hourly|daily ] [ -units=C|F ] <location>\n")
+	flag.Usage()
+	println()
+	os.Exit(2)
 }
 
-type GoogleGeocodeResult struct {
-	Geometry struct {
-		Location LatLng
+func main() {
+	units := flag.String("units", "C", "C | F")
+	period := flag.String("period", "current", "current | hourly | daily")
+	flag.Parse()
+
+	place := flag.Arg(0)
+
+	if place == "" {
+		exitInvalidArguments()
 	}
-}
 
-func (g GoogleGeocodeResult) ToLatLng() LatLng {
-	return g.Geometry.Location
-}
+	var un string
+	if strings.ToUpper(*units) == "C" {
+		un = UnitsMetric
+	} else if strings.ToUpper(*units) == "F" {
+		un = UnitsImperial
+	} else {
+		exitInvalidArguments()
+	}
 
-type GoogleGeocodeResponse struct {
-	Status  string
-	Results []GoogleGeocodeResult
-}
+	if *period != WeatherPeriodCurrent &&
+		*period != WeatherPeriodHourly &&
+		*period != WeatherPeriodDaily {
+		exitInvalidArguments()
+	}
 
-func getLatLngForPlace(place string) (latLng LatLng, err error) {
-	escPlace := url.QueryEscape(place)
-	u := fmt.Sprintf("https://maps.googleapis.com/maps/api/geocode/json?key=%s&address=%s",
-		GoogleApiKey,
-		escPlace,
-	)
-
-	r, err := http.Get(u)
+	w, err := getWeatherForPlace(place, un, *period)
 	if err != nil {
-		return LatLng{}, err
-	}
-	defer r.Body.Close()
-
-	var geocode GoogleGeocodeResponse
-
-	err = json.NewDecoder(r.Body).Decode(&geocode)
-	if err != nil {
-		return LatLng{}, err
+		panic(err)
 	}
 
-	if geocode.Status != "OK" || len(geocode.Results) < 1 {
-		return LatLng{}, err
+	switch *period {
+	case WeatherPeriodCurrent:
+		printWeatherResult(*w.Current, place, un)
+	case WeatherPeriodHourly:
+		printWeatherResult(*w.Hourly, place, un)
+	case WeatherPeriodDaily:
+		printWeatherResult(*w.Daily, place, un)
 	}
-
-	return geocode.Results[0].ToLatLng(), nil
 }
 
-func printWeatherResult(w interface{}, location string, units string) {
+func getWeatherForPlace(place string, units string, period string) (w OpenWeatherResponseOneCall, err error) {
+	ll, err := getLatLngForPlace(place)
+	if err != nil {
+		return w, err
+	}
+	return getWeatherForLatLng(ll, units, period)
+}
+
+func printWeatherResult(w interface{}, place string, units string) {
 	var unitAbbr string
 
 	switch units {
@@ -66,7 +83,7 @@ func printWeatherResult(w interface{}, location string, units string) {
 		unitAbbr = "F"
 	}
 
-	fmt.Printf("Weather for %s:\n", location)
+	fmt.Printf("Weather for %s:\n", place)
 
 	switch w.(type) {
 	case OpenWeatherResponseCurrent:
@@ -109,17 +126,4 @@ func printWeatherResult(w interface{}, location string, units string) {
 			)
 		}
 	}
-}
-
-func main() {
-	ll, err := getLatLngForPlace("80919")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	w, err := getWeatherForLatLng(ll, UnitsMetric, WeatherPeriodHourly)
-	if err != nil {
-		log.Fatal(err)
-	}
-	printWeatherResult(*w.Hourly, "80919", UnitsMetric)
 }
