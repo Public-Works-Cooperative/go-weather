@@ -29,9 +29,9 @@ func main() {
 	period := flag.String("period", "current", "current | hourly | daily")
 	flag.Parse()
 
-	place := flag.Arg(0)
+	places := flag.Args()
 
-	if place == "" {
+	if len(places) < 1 {
 		exitInvalidArguments()
 	}
 
@@ -50,19 +50,26 @@ func main() {
 		exitInvalidArguments()
 	}
 
-	w, err := getWeatherForPlace(place, un, *period)
-	if err != nil {
-		panic(err)
+	start := time.Now()
+
+	for _, p := range places {
+		w, err := getWeatherForPlace(p, un, *period)
+		if err != nil {
+			panic(err)
+		}
+
+		switch *period {
+		case WeatherPeriodCurrent:
+			printWeatherResult(*w.Current, p, un)
+		case WeatherPeriodHourly:
+			printWeatherResult(*w.Hourly, p, un)
+		case WeatherPeriodDaily:
+			printWeatherResult(*w.Daily, p, un)
+		}
 	}
 
-	switch *period {
-	case WeatherPeriodCurrent:
-		printWeatherResult(*w.Current, place, un)
-	case WeatherPeriodHourly:
-		printWeatherResult(*w.Hourly, place, un)
-	case WeatherPeriodDaily:
-		printWeatherResult(*w.Daily, place, un)
-	}
+	elapsed := time.Now().Sub(start)
+	fmt.Printf("Elapsed time: %d\n", elapsed.Milliseconds())
 }
 
 func getWeatherForPlace(place string, units string, period string) (w OpenWeatherResponseOneCall, err error) {
