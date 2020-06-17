@@ -61,6 +61,8 @@ func main() {
 	chs := make([]chan OpenWeatherResponseOneCall, len(places))
 	errChs := make([]chan error, len(places))
 
+	start := time.Now()
+
 	for i, place := range places {
 		chs[i] = make(chan OpenWeatherResponseOneCall, 1)
 		errChs[i] = make(chan error, 1)
@@ -83,6 +85,9 @@ func main() {
 			}
 		}
 	}
+
+	elapsed := time.Now().Sub(start)
+	fmt.Printf("Elapsed: %dms\n", elapsed.Milliseconds())
 
 }
 
