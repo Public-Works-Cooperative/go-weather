@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -115,7 +114,7 @@ func getWeatherForLatLng(latLng LatLng, units string, period string) (weather Op
 		units,
 	)
 
-	r, err := http.Get(u)
+	r, err := httpClient.Get(u)
 	if err != nil {
 		return weather, err
 	}

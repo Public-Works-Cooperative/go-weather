@@ -3,10 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 )
+
+var httpClient http.Client
 
 const (
 	WeatherPeriodCurrent  = "current"
@@ -18,20 +22,24 @@ const (
 )
 
 func exitInvalidArguments() {
-	println("\nUsage: go-weather [ -period=current|hourly|daily ] [ -units=C|F ] <location>\n")
+	println("\nUsage: go-weather [ -period=current|hourly|daily ] [ -units=C|F ] <location>...\n")
 	flag.Usage()
 	println()
 	os.Exit(2)
 }
 
 func main() {
+	httpClient = http.Client{
+		Timeout: time.Second * 10,
+	}
+
 	units := flag.String("units", "C", "C | F")
 	period := flag.String("period", "current", "current | hourly | daily")
 	flag.Parse()
 
-	place := flag.Arg(0)
+	places := flag.Args()
 
-	if place == "" {
+	if len(places) < 1 {
 		exitInvalidArguments()
 	}
 
@@ -50,19 +58,32 @@ func main() {
 		exitInvalidArguments()
 	}
 
-	w, err := getWeatherForPlace(place, un, *period)
-	if err != nil {
-		panic(err)
+	chs := make([]chan OpenWeatherResponseOneCall, len(places))
+	errChs := make([]chan error, len(places))
+
+	for i, place := range places {
+		chs[i] = make(chan OpenWeatherResponseOneCall, 1)
+		errChs[i] = make(chan error, 1)
+		go concurrentGetWeatherForPlace(place, un, *period, chs[i], errChs[i])
 	}
 
-	switch *period {
-	case WeatherPeriodCurrent:
-		printWeatherResult(*w.Current, place, un)
-	case WeatherPeriodHourly:
-		printWeatherResult(*w.Hourly, place, un)
-	case WeatherPeriodDaily:
-		printWeatherResult(*w.Daily, place, un)
+	for i, ch := range chs {
+		w := <-ch
+		err := <-errChs[i]
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			switch *period {
+			case WeatherPeriodCurrent:
+				printWeatherResult(*w.Current, places[i], un)
+			case WeatherPeriodHourly:
+				printWeatherResult(*w.Hourly, places[i], un)
+			case WeatherPeriodDaily:
+				printWeatherResult(*w.Daily, places[i], un)
+			}
+		}
 	}
+
 }
 
 func getWeatherForPlace(place string, units string, period string) (w OpenWeatherResponseOneCall, err error) {
@@ -71,6 +92,12 @@ func getWeatherForPlace(place string, units string, period string) (w OpenWeathe
 		return w, err
 	}
 	return getWeatherForLatLng(ll, units, period)
+}
+
+func concurrentGetWeatherForPlace(place string, units string, period string, wCh chan OpenWeatherResponseOneCall, errCh chan error) {
+	w, err := getWeatherForPlace(place, units, period)
+	wCh <- w
+	errCh <- err
 }
 
 func printWeatherResult(w interface{}, place string, units string) {

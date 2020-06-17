@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 )
 
@@ -34,7 +33,7 @@ func getLatLngForPlace(place string) (latLng LatLng, err error) {
 		escPlace,
 	)
 
-	r, err := http.Get(u)
+	r, err := httpClient.Get(u)
 	if err != nil {
 		return latLng, err
 	}
