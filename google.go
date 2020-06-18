@@ -37,6 +37,7 @@ func getLatLngForPlace(place string) (latLng LatLng, err error) {
 	if err != nil {
 		return latLng, err
 	}
+
 	defer r.Body.Close()
 
 	var geocode GoogleGeocodeResponse
@@ -50,5 +51,5 @@ func getLatLngForPlace(place string) (latLng LatLng, err error) {
 		return latLng, err
 	}
 
-	return geocode.Results[0].ToLatLng(), nil
+	return geocode.Results[0].Geometry.Location, err
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type OpenWeatherCondition struct {
@@ -16,8 +17,8 @@ type OpenWeatherCondition struct {
 
 type OpenWeatherResponseCurrent struct {
 	Dt         int64
-	Sunrise    int
-	Sunset     int
+	Sunrise    int64
+	Sunset     int64
 	Temp       float32
 	Feels_like float32
 	Pressure   int
@@ -33,6 +34,27 @@ type OpenWeatherResponseCurrent struct {
 	Rain       struct {
 		_1hr float32 `json:"1hr"`
 	}
+	Snow struct {
+		_1hr float32 `json:"1hr"`
+	}
+}
+
+func (w OpenWeatherResponseCurrent) Output(units string) string {
+	var unitAbbr string
+
+	switch units {
+	case UnitsMetric:
+		unitAbbr = "C"
+	case UnitsImperial:
+		unitAbbr = "F"
+	}
+
+	return fmt.Sprintf("Current: %g%s | Humidity: %d%% | %s\n",
+		w.Temp,
+		unitAbbr,
+		w.Humidity,
+		w.Weather[0].Description,
+	)
 }
 
 type OpenWeatherResponseHourly struct {
@@ -51,12 +73,38 @@ type OpenWeatherResponseHourly struct {
 	Rain       struct {
 		_1hr float32 `json:"1hr"`
 	}
+	Snow struct {
+		_1hr float32 `json:"1hr"`
+	}
+}
+
+func (w OpenWeatherResponseHourly) Output(units string) string {
+	var unitAbbr string
+
+	switch units {
+	case UnitsMetric:
+		unitAbbr = "C"
+	case UnitsImperial:
+		unitAbbr = "F"
+	}
+
+	t := time.Unix(w.Dt, 0)
+	return fmt.Sprintf("%-9s %2d/%2d %02d:00   %5.2f%s | Humidity: %d%% | %s\n",
+		t.Weekday().String(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
+		w.Temp,
+		unitAbbr,
+		w.Humidity,
+		w.Weather[0].Description,
+	)
 }
 
 type OpenWeatherResponseDaily struct {
 	Dt      int64
-	Sunrise int
-	Sunset  int
+	Sunrise int64
+	Sunset  int64
 	Temp    struct {
 		Day   float32
 		Min   float32
@@ -81,7 +129,32 @@ type OpenWeatherResponseDaily struct {
 	Wind_gust  float32
 	Wind_deg   int
 	Weather    []OpenWeatherCondition
-	Rain       float32 `json:"1hr"`
+	Rain       float32
+	Snow       float32
+}
+
+func (w OpenWeatherResponseDaily) Output(units string) string {
+	var unitAbbr string
+
+	switch units {
+	case UnitsMetric:
+		unitAbbr = "C"
+	case UnitsImperial:
+		unitAbbr = "F"
+	}
+
+	t := time.Unix(w.Dt, 0)
+	return fmt.Sprintf("%-9s %2d/%2d   High: %5.2f%s Low: %5.2f%s | Humidity: %d%% | %s\n",
+		t.Weekday().String(),
+		t.Month(),
+		t.Day(),
+		w.Temp.Max,
+		unitAbbr,
+		w.Temp.Min,
+		unitAbbr,
+		w.Humidity,
+		w.Weather[0].Description,
+	)
 }
 
 type OpenWeatherResponseOneCall struct {
@@ -91,7 +164,6 @@ type OpenWeatherResponseOneCall struct {
 }
 
 func getWeatherForLatLng(latLng LatLng, units string, period string) (weather OpenWeatherResponseOneCall, err error) {
-	// build exclude-list; always exclude minutely
 	exclude := []string{WeatherPeriodMinutely}
 
 	if period != WeatherPeriodCurrent {
@@ -125,9 +197,6 @@ func getWeatherForLatLng(latLng LatLng, units string, period string) (weather Op
 	}
 
 	err = json.NewDecoder(r.Body).Decode(&weather)
-	if err != nil {
-		return weather, err
-	}
 
-	return weather, nil
+	return weather, err
 }
