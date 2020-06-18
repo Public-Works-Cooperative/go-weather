@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type OpenWeatherCondition struct {
@@ -36,6 +37,24 @@ type OpenWeatherResponseCurrent struct {
 	}
 }
 
+func (w OpenWeatherResponseCurrent) Output(units string) string {
+	var unitAbbr string
+
+	switch units {
+	case UnitsMetric:
+		unitAbbr = "C"
+	case UnitsImperial:
+		unitAbbr = "F"
+	}
+
+	return fmt.Sprintf("Current: %g%s | Humidity: %d%% | %s\n",
+		w.Temp,
+		unitAbbr,
+		w.Humidity,
+		w.Weather[0].Description,
+	)
+}
+
 type OpenWeatherResponseHourly struct {
 	Dt         int64
 	Temp       float32
@@ -52,6 +71,29 @@ type OpenWeatherResponseHourly struct {
 	Rain       struct {
 		_1hr float32 `json:"1hr"`
 	}
+}
+
+func (w OpenWeatherResponseHourly) Output(units string) string {
+	var unitAbbr string
+
+	switch units {
+	case UnitsMetric:
+		unitAbbr = "C"
+	case UnitsImperial:
+		unitAbbr = "F"
+	}
+
+	t := time.Unix(w.Dt, 0)
+	return fmt.Sprintf("%-9s %2d/%2d %02d:00   %5.2f%s | Humidity: %d%% | %s\n",
+		t.Weekday().String(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
+		w.Temp,
+		unitAbbr,
+		w.Humidity,
+		w.Weather[0].Description,
+	)
 }
 
 type OpenWeatherResponseDaily struct {
@@ -83,6 +125,30 @@ type OpenWeatherResponseDaily struct {
 	Wind_deg   int
 	Weather    []OpenWeatherCondition
 	Rain       float32 `json:"1hr"`
+}
+
+func (w OpenWeatherResponseDaily) Output(units string) string {
+	var unitAbbr string
+
+	switch units {
+	case UnitsMetric:
+		unitAbbr = "C"
+	case UnitsImperial:
+		unitAbbr = "F"
+	}
+
+	t := time.Unix(w.Dt, 0)
+	return fmt.Sprintf("%-9s %2d/%2d   High: %5.2f%s Low: %5.2f%s | Humidity: %d%% | %s\n",
+		t.Weekday().String(),
+		t.Month(),
+		t.Day(),
+		w.Temp.Max,
+		unitAbbr,
+		w.Temp.Min,
+		unitAbbr,
+		w.Humidity,
+		w.Weather[0].Description,
+	)
 }
 
 type OpenWeatherResponseOneCall struct {
