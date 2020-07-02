@@ -24,4 +24,10 @@ Usage: go-weather [ -period=current|hourly|daily ] [ -units=C|F ] <location>...
 ```
 
 ## Example
-`go-weather -period=daily -units=f 80209 80919`
+```
+$ go-weather -period=daily -units=f 80209 80919
+Weather for 80209:
+Current: 63.37F | Humidity: 36% | few clouds
+Weather for 80919:
+Current: 58.48F | Humidity: 33% | clear sky
+```
